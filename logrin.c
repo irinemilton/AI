@@ -1,300 +1,396 @@
-%PDF-1.4
-%“Œ‹ ReportLab Generated PDF document (opensource)
-1 0 obj
-<<
-/F1 2 0 R /F2 3 0 R /F3 4 0 R
->>
-endobj
-2 0 obj
-<<
-/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
->>
-endobj
-3 0 obj
-<<
-/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
->>
-endobj
-4 0 obj
-<<
-/BaseFont /Courier /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
->>
-endobj
-5 0 obj
-<<
-/Contents 16 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+Experiment 5 â€” Client-Server Communication Using TCP (Matrix
 
->> 
-  /Type /Page
->>
-endobj
-6 0 obj
-<<
-/Contents 17 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+Classification)
+Server program (server.c)
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+int main() {
+    int server_fd, client_fd, n, a[20][20];
+    int upper = 1, lower = 1, diagonal = 1;
+    struct sockaddr_in addr;
+    char result[100];
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(9002);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    bind(server_fd, (struct sockaddr *)&addr, sizeof(addr));
+    listen(server_fd, 5);
+    printf("Server waiting for client...\n");
+    client_fd = accept(server_fd, NULL, NULL);
+    recv(client_fd, &n, sizeof(n), 0);
+    if (n < 1 || n > 20) {
+        close(client_fd);
+        close(server_fd);
+        return 1;
+    }
+recv(client_fd, a, n * n * sizeof(int), 0);
+for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+        if (i > j && a[i][j] != 0) upper = 0;
+        if (i < j && a[i][j] != 0) lower = 0;
+        if (i != j && a[i][j] != 0) diagonal = 0;
+    }
+}
+if (diagonal)
+strcpy(result, "Diagonal Matrix");
+else if (upper)
+strcpy(result, "Upper Triangular Matrix");
+else if (lower)
+strcpy(result, "Lower Triangular Matrix");
+else
+strcpy(result, "Normal Matrix");
+send(client_fd, result, strlen(result) + 1, 0);
+printf("Matrix type: %s\n", result);
+close(client_fd);
+close(server_fd);
+return 0;
+}
+Client program (client.c)
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+int main() {
+    int sockfd, n, a[20][20];
+    struct sockaddr_in addr;
+    char result[100];
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(9002);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
+    printf("Enter matrix order: ");
+    scanf("%d", &n);
+    if (n < 1 || n > 20) {
+        printf("Invalid order\n");
+        close(sockfd);
+        return 1;
+    }
+srand(1);
+printf("Matrix:\n");
+for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+        a[i][j] = rand() % 50 + 1;
+        printf("%d ", a[i][j]);
+    }
+printf("\n");
+}
+send(sockfd, &n, sizeof(n), 0);
+send(sockfd, a, n * n * sizeof(int), 0);
+int r = recv(sockfd, result, sizeof(result) - 1, 0);
+if (r > 0) {
+    result[r] = '\0';
+    printf("Matrix type: %s\n", result);
+}
+close(sockfd);
+return 0;
+}
+Terminal commands
+gcc server.c -o server
+gcc client.c -o client
+Run the server in Terminal 1; run the client in Terminal 2.
+Terminal 1:
+./server
+Terminal 2:
+./client
+Sample output
+Server waiting for client...
+Matrix type: Normal Matrix
+Enter matrix order: 2
+Matrix:
+34 37
+28 16
+Matrix type: Normal Matrix
 
->> 
-  /Type /Page
->>
-endobj
-7 0 obj
-<<
-/Contents 18 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+========================================================================
 
->> 
-  /Type /Page
->>
-endobj
-8 0 obj
-<<
-/Contents 19 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+Experiment 6 â€” Client-Server Communication Using UDP
 
->> 
-  /Type /Page
->>
-endobj
-9 0 obj
-<<
-/Contents 20 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+(Abbreviation Expansion)
+Server program (server.c)
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+void replace(char *str, const char *old, const char *new) {
+    char temp[2048];
+    char *pos;
+    while ((pos = strstr(str, old)) != NULL) {
+        strcpy(temp, pos + strlen(old));
+        *pos = '\0';
+        strcat(str, new);
+        strcat(str, temp);
+    }
+}
+int main() {
+    int sockfd, n;
+    struct sockaddr_in addr, client;
+    socklen_t len;
+    char msg[2048], tbuf[2048];
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(9002);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    bind(sockfd, (struct sockaddr *)&addr, sizeof(addr));
+    printf("UDP server waiting...\n");
+    len = sizeof(client);
+    n = recvfrom(sockfd, msg, sizeof(msg) - 1, 0,
+    (struct sockaddr *)&client, &len);
+    if (n > 0) {
+        msg[n] = '\0';
+        replace(msg, "tbh", "to be honest");
+        replace(msg, "ig", "I guess");
+        replace(msg, "tbf", "to be fair");
+        replace(msg, "atm", "at the moment");
+        replace(msg, "irl", "in real life");
+        replace(msg, "lol", "laughing out loud");
+        replace(msg, "asap", "as soon as possible");
+        replace(msg, "omg", "oh my God");
+        replace(msg, "ttyl", "talk to you later");
+        replace(msg, "idk", "I don't know");
+        replace(msg, "nvm", "never mind");
+        sendto(sockfd, msg, strlen(msg), 0,
+        (struct sockaddr *)&client, len);
+        printf("Translated sentence: %s\n", msg);
+    }
+close(sockfd);
+return 0;
+}
+Client program (client.c)
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+int main() {
+    int sockfd, n;
+    struct sockaddr_in server;
+    socklen_t len;
+    char msg[2048];
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(9002);
+    inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
+    printf("Enter a sentence: ");
+    fgets(msg, sizeof(msg), stdin);
+    msg[strcspn(msg, "\n")] = '\0';
+    sendto(sockfd, msg, strlen(msg), 0,
+    (struct sockaddr *)&server, sizeof(server));
+    len = sizeof(server);
+    n = recvfrom(sockfd, msg, sizeof(msg) - 1, 0,
+    (struct sockaddr *)&server, &len);
+    if (n > 0) {
+        msg[n] = '\0';
+        printf("Formal English: %s\n", msg);
+    }
+close(sockfd);
+return 0;
+}
+Terminal commands
+gcc server.c -o server
+gcc client.c -o client
+Run the server in Terminal 1; run the client in Terminal 2.
+Terminal 1:
+./server
+Terminal 2:
+./client
+Sample output
+UDP server waiting...
+Translated sentence: to be honest I don't know what to do laughing out loud
+Enter a sentence: tbh idk what to do lol
+Formal English: to be honest I don't know what to do laughing out loud
 
->> 
-  /Type /Page
->>
-endobj
-10 0 obj
-<<
-/Contents 21 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+========================================================================
 
->> 
-  /Type /Page
->>
-endobj
-11 0 obj
-<<
-/Contents 22 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+Experiment 7 â€” Multi-user Chat Server Using TCP
 
->> 
-  /Type /Page
->>
-endobj
-12 0 obj
-<<
-/Contents 23 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 15 0 R /Resources <<
-/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
->> /Rotate 0 /Trans <<
+Server program (server.c)
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+int main() {
+    int server_fd, client_fd, n;
+    struct sockaddr_in addr;
+    char msg[1024];
+    signal(SIGCHLD, SIG_IGN);
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(9002);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    bind(server_fd, (struct sockaddr *)&addr, sizeof(addr));
+    listen(server_fd, 5);
+    printf("Chat server waiting for clients...\n");
+    while (1) {
+        client_fd = accept(server_fd, NULL, NULL);
+        if (client_fd < 0) continue;
+        if (fork() == 0) {
+            close(server_fd);
+            while (1) {
+                n = recv(client_fd, msg, sizeof(msg) - 1, 0);
+                if (n <= 0) break;
+                msg[n] = '\0';
+                printf("Client message: %s", msg);
+                send(client_fd, msg, n, 0);
+                if (strncmp(msg, "exit", 4) == 0) break;
+            }
+        close(client_fd);
+        exit(0);
+    }
+close(client_fd);
+}
+close(server_fd);
+return 0;
+}
+Client program (client.c)
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+int main() {
+    int sockfd, n;
+    struct sockaddr_in addr;
+    char msg[1024];
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(9002);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        return 1;
+    }
+printf("Connected to server\n");
+while (1) {
+    printf("Enter message (exit to quit): ");
+    if (fgets(msg, sizeof(msg), stdin) == NULL) break;
+    send(sockfd, msg, strlen(msg), 0);
+    n = recv(sockfd, msg, sizeof(msg) - 1, 0);
+    if (n <= 0) break;
+    msg[n] = '\0';
+    printf("Server: %s", msg);
+    if (strncmp(msg, "exit", 4) == 0) break;
+}
+close(sockfd);
+return 0;
+}
+Terminal commands
+gcc server.c -o server
+gcc client.c -o client
+Run the server in Terminal 1; run the client in Terminal 2.
+Terminal 1:
+./server
+Terminal 2:
+./client
+Sample output
+Chat server waiting for clients...
+Client message: Hello
+Client message: exit
+Connected to server
+Enter message (exit to quit): Hello
+Server: Hello
+Enter message (exit to quit): exit
+Server: exit
 
->> 
-  /Type /Page
->>
-endobj
-13 0 obj
-<<
-/PageMode /UseNone /Pages 15 0 R /Type /Catalog
->>
-endobj
-14 0 obj
-<<
-/Author (OpenAI) /CreationDate (D:20261024063624+00'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20261024063624+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
-  /Subject (\(unspecified\)) /Title (Four Networking Experiments - Programs and Outputs) /Trapped /False
->>
-endobj
-15 0 obj
-<<
-/Count 8 /Kids [ 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R ] /Type /Pages
->>
-endobj
-16 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 1339
->>
-stream
-Gb!#ZlVlP-&HC$_Z)%OIK6uCqOrk"P%-94]PY`::LCRcU([::V/"bU\9L>6Hn(lI9Z7WkGI],DUSG)onh7[Abn^"Lf0Eq7)K7brabQ_tgbTRI@(NAYVrOGp)qM$[Hh;UM9fUtn75TH[lh#S(RiWf[6C]mk6h6e9_FpB%l?/dWjBAcM#]&I3#X9IG`]KN%V2`+Hj3%jIh?0X\Yb6[JD*-;_5KQcn;"%!5&.K[Il)rF]_;6W.%`5.iNbfrHl(l,6BY;;m6<2^L9n85cBa-"<j:Y.qj$Ot/HF?3JYi2MYMga#dW_)o@4htk,e/\dUs>/q4N&ihF$rROj\c#Ih0of/>`&/"QL97)'lLfsG`CN1oB@/5gn@2.SDF?J-%MV]Z4#81k4Lu%N_Ic8AnPnp,s:O/Cdn;;"q+i"RI%aA;F5`]I/da+,oqGF78RYLqSP;JLYq>@rnD*^LMOkNK%&8="NK_CKI,]W=/8=Sj9U_9j5WG;'a8)g+9\Q$<)\)?^I'_#a+3J,.GfS1MAM<n6MJ`#2Rc<P;>AEG\l-?ocs%8m&"HjqADa,3B![4Hr]bl]eVrpqhn6`Ij`Q^NHO>_<g64A'N0XdNIn.:#@M3>T>OF>c7r4S@EIrTiu,_e\`$l-Y8E:qsE>gmB=Re\_ukb3/j@'S;CMc!m4fe)rPgM/NhO[3*qd^LRk>357R:3VbWs])6uErKC2hRB@FE\6)3(pAELEH"fVirt=kC\'3!5X]g`=K7mE+k14c,^):N]MH[HHWqjMCC?c`/^=[0eM!qD3<<H5B?p$OW`%51LG'S.KOl'4D[0Z2KX-Q5eC(Uk4Mh[4R,=Fl7+kG5RDkQ#OfQ8]@F/S"ce<I-dWps'&2XtICcF$j#d-jcN_6G1l0>#AG&DP`c.X?Yc`W6\qUi5dC#RV[Nqi.j4pa8*%,j1d^_I!<k&[)N-mUEHD]A(FJr:&!V<#$feO2!#gfI0s)o[C+ega$.j!=eVWRk\8FL/Q!bV-!4i0u<4m\+20!L@(2Q>^f;IA[7+)O_`2QfgOpr#+_Y<=6"RZ/a6Eg).8r4^;uDl9_J#20$Wq:'R?ffR\!GNj&-Y87Ab^uCYZ@He%aLLZYCVn%7hRQiXP6"VIu.9epGHdAboYg(?J[lSgmGU)jK]l>Fk)`*AI&`W&A#tNH1cp_o_i?oNjIafX+0FY8K'V'Zj-((dD=^@asUHchN(MppUnBg3e5/poih8bg?AuGVCNTB1T6%Yg)MUU%i8&>e<Yh`EEkm8r:?Raoul?)CF&$r)BNFTVd"Ba#Xq2%BO]M,iHg!mtA\Vp#6(eZ?i\AGpL;_@+.59mi,EF00%RiWeIR)!.]@8:]~>endstream
-endobj
-17 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 849
->>
-stream
-Gatm9gMY_1&:N^lNZuk968lGff,&,t:apg-/)'bMc@][DC5Ql62X*s3p[6bT_urK.A.cQ"S=)Ba4C^0DrF=qD8q7F9/jD*F$iUQn'+Y$UY5HRNVtRX?i=W]1'@&_0\fdM)<-TO;C'0*WRfHK%(D\C8p4fdS&WF7/IY-E%S4ct4p^?k0-J;I+AeW#bZ!BXUCuu?ooXLdMkt[J5AL\"E6;Ao%$9NppH9!+tj#Sn#':-AdWR&DNU"N)5pFq7fb3cai/pbkp=(+-!H7\9@2hXg#9#YL!$[O1m_a;>W7R<--ls_dr"?h`3N-Cq)I<pfNT?bc855r!pD>^-F0.QnZ!8agH-GI/rghM4*<!0`D'^&la]`AT4mM%%$:&HVdZQ>]?Rb3&#D;^C"Q\JA/76bD5!T'USjRF=[klb_I++WckB]Hu2;Oj$P9pi)t2pb*mN!(oIh^2/T?S@=SdHY$GF9/g'a\7VrnD8E`Lg<I,-mSD!&CAn(K'i15MVfpE68pi<D<Ms@/Qubsh!AJdY%4e<WU>bcqJ^7GK]b15En;JY@X@&+4P8/'3Jb4gm@Ce\(fiG$J[&tLbDG_b9&_[4,0H':pKQK(^;%<*M"U<nV$CUS*_!YYe@eg,_F7L42sM6([#AR"<:9&JW+<bZ38\jlkrp4$K3.>JQ#+1:;\\,#bsM.N)TC>GWqKI=>$d+L6V0aS6-5fCmK"oK>Xsd(jKbn$C#%-c%"+YTh";_&qm(CX%[5F@,$PkaF`CYOcGV5\0l1I_g+2*(p"4bKE=o,?npOh'+).<bYOur2@ONd)fif;$V1h[0<8^GEV&F3cM04u`qEt3hS`\4<_<h1M=A"=n5<<]Z56~>endstream
-endobj
-18 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 1326
->>
-stream
-Gb!#[D/\/e&H88.EU_=U/mMSEp#\.MO<mX</G6;<r@gp!TuaU9`M-UpDOV+6mlOG<Mejhc(CZ[_fTbgk\`<3$R=^9F<.Dn:^eXuQ0.9X)JdG8CfFV<(+?94><(_NakS(FQ:2JX.9co1.H`#6sigBLkJs\"i>'bBDRlG<##F7^s8pq%4$H@3FA^G3[n0\>lQ*]@%bgOFQM!I."%A%JNZe)Yu*f>g=ioL1qq_gJ:66-G8>ObCk<J9do"k:qfoG(\Bn9*#EOtnZ+K@$ndGdj'^jOGGe!m^3X#rbP*`q>*LiDU$-Xt/`$nN$Rq5&*s='QL[\kM&8OXmb]9l`K[(U='re)1=-CWJFFXNEe[jES0+YV!!!@/qH-s(2T.j1m4#]Y9OW"=?,s4qkPcL%m6T`^b<.Np`\VdCb]O@SBGo8Oh2^%W2cRpEn_iQ=P%lPJgY6c@$aQ41i&19jP;qVn!S!XbD/+$lc#C9"TQ(?hiMWE"M5q=&fqs")ua03!a\JuCs?WKmQ`m-YbguT^SrVj_M]7R&RR@9Mc%>WI92]n]1>2U:]I)bAUf)+!MQ(JlpKgqo'P,V=6CU>`TZm[0PkY2>9\Y4-n5iJV\c,Oi?1CT?dF0=h$!0OVscZSDOW+P"FGSSM:,r.J.>2h#.8_',V%WlN9?n^2bg@#A$OBfBQ6$p4[4E\3Z\3+<PM9'GhMMrOEa^+*P;g8cdebB"o4'fPL*-M@=(*,%/YkNMDJm4B;IQ-?BjZMV%8$K%:>htWhYW1Vqfjn&/'`1[2nDQ>r#mqPO<OJhU?%/@*VUhZam.;)Lf3-.R(>tlLp[>hmJ5L[9jJX*0Di*DB^SE"F[Jcp#JN1m(t6FANAL1;hnb1K$0'^JqCt62ZS&$1Tu!/DpZBPTJ_/,H0H#&*#I7G"cMf<Q.9m5+#3JI0Jm,nl`E*KUP"fm3RZ2gGa>fqcGpLX9JtpT?MomIY^(Mac?8h$BX+at`-D!%D][$hgLK!H6IQ''KaNfCKY*9=3W6D8D#:e60Y%`7bk9GMO!]VMp"U:%4dA=VD-f#3OkO4PC4!ndom>QE(tA+]`KsA/d!s0#H^M%'l8I^cQq(GYn\%VP1&j&te%YhmKVf)4R\P646]5+h_:MUPnSg^r:gP1&'QZFtSAg?qb-HF+e!41B4-&jE<b+PA\\`cXEL9-R^rJOT[<[WeKK=hX(t44ZYXP3R9K!*CPsi4&Qj9qZb2\"F,i`oIUUh@Yb5%q=%_).IW(j;M^aYIm3Hcn]KXZ3eGVOaWk%u$R`S=hg:Z4p'R<kh\?(#iGWG>4`<V$='n/r4ra*k!<(-a0]\P<Z$3;Nl3qRK<~>endstream
-endobj
-19 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 675
->>
-stream
-Gatn#bAQ&g&4Q?iMMhH<llok/M:<b92DnBSd=p=gl&@1ANZ(d#.D"mns'CSGj[Wf?J1C^;28bimF+te>[6NgQEs6q`EVl/Tq+)<0S8b92nX+W<YP5u;,9^K6-_)J+NBoObW(9/V[0?iKC]de3?20qG0F?YF+rH4U;MELT>>"B>d[s&p[`Q8:1><?m8/M`W&b1\H+Q6@mpL1)`U=LeM7a@p"c9+E\qa;P`iANCr'>@`me`Ykn'kLST&/!N"gbgfQrtGjb7ZGeqY#_lkC6mJ]P(*g[FU^MRj5C$g^4'a`^"dNp]AV<.f3l_D\remRS\H`<Zgm!t/^6adTKDK*=U'=70N`[Tq979o]nSA$3Cs#bLIXL+"C8o/)!e'`g.eDE7?s.ZCSe=OhAd5Z]0,2n^N]m?Sf#6ucd>;^959XMVXE%<S^s?uKrdu2magQ_=Wi@Z[7?eb"<`H;naW0=n!a[H=nX=A<#CFrHg'>@M)b#$j?1O<8H&_55`kaDbFR4r!?ep9,jL=Mg%u`Gad0nmCbIl1:RPCO'(s8G2Wd+edIr#D^kfGKh?5f`cHLJ*^U(ckeIo;]5OaDh@EP?:G6X:J)LI\(iJT81qP:U68e*1%WN/YR<]\GhBE#.k[XK<6YGF.eh6u/SAi;h*p#L^cXlj`k$Q;q0)r24dr<8aYN;*~>endstream
-endobj
-20 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 1444
->>
-stream
-Gb!;bD0)19&H;*)YuN/0FqkDk,geH:EW)'je90S8rm3)3bm=mE@^r2Rac=fkJ+"Fd#mn_N9th=T!4Qmmmb[B'%2OEZi]g*;INH>qKakHmUDRh!FCB7pkG,`*p+"3]'7@,nXdcK\pT5U+XuijM+&("t"WQN%$eU_fcZ)[_n+XWf9[C/&2N1NfDTJ&oG6jt)0KRY)IRc2T,-GSPLS!VETPp<#cZ]sBP"i!<f)SLfG>Ss>[ccStL-5p7Si1S9iIL;1Y4rp>EW.D^P,4BnkX48f"#s!l^:enijZSlJ.aiFa=\'5?*,]i;Vf7!+o8(d"N0D@OdX,"MTK9r2HjUA8gt;$cc`]E>4#Vfr*U$^[TaR`H*VLG4XSf<GPSARGE&/r?P,&X+H*Lb3D1FTob[1P7`Jp[uO==%a7Q3_uQ4\:;h8",)E'5Tj@i1O/_YB_m0UYEFI`b[/KK4CcN*r2%0tc7TQiiT.+h,OREtR8+[@PUB@e`#s]LFQ!mKJM6dOZOb%?,6q,TItb/qei>$H`O77-b5N4p6Z1pX0]4<DXB(ZTfJR*I`7`,T^M@?XJ8LZ%QSd!Wu$`)UL6g0m+B8=q(thb]g8LqY'3S@8L=P(hS]Ad!!$oQ2I<,'$:<OP(2!n3\$+0"G(^BUhZ/_<>Z'5TAe2+2jqB2hnH1GRphSYKH[p]4.;sd(h9ZC\i)B$%neC/+us6ToGr!N<9aZDEhWMC"o,hY$Y_dV1PEgso6;KaCMMj"kG6a3=QL@ZbNnas(Z,18qTJ[#mCSQh]3oJ:Y&Tl^,K;H0=gC<g8o=l<-DWu*RDRbp(qsQA4#N<7`=4+GY><HhhMk=6s&`p+0HOY3W^%=KWlGU0K#@OBGWGXp73!0@D/H%!F_+[7$9:0"n"=JEn3EAh2/8RG^cS#n1#tB+Q0'hbRlm-,ddTGd,$cA2[&bD/$gs(B?t4l%NSV(V[X2(ZmD?T?JdpHc7Ni7[FQ0`nPMR8V_sZ5\2MqQQ7nmS9I1n<.0GBu=WY(@F@Vi'@/n$f=H/;"U:#_G/Qn[2_Lo@[Zgd'+4Ud@ke<p4(gjfl`M,mbhJVJX6a;2?N/5+UpM.HX`_@NMq/RZjhgRU[[aL>j4X<6cg^/(5[o!\.fD0&WjFAQ#KrJQIup%PY*p0o(E1g+'H\\goQR$%AQ*Nf/ZN@f3s]#cG7o;QS?L694.i&t=SPp%4t4SgoVq94CO_XO[,;in6bU+jr%YjWXR7?KA]G$QqOcr2R^_,,^L[2q]KWF327%XY(@T3pJ`nE-X/5g(RA0Y,e+Tb-867+lU>CkP#0fG=&T`9:q"=-RY].S]Ha0CQ?XAe2Nl\ja?lbZi$<;n*89tquj2X5!Qr-i5QY_CG7fX1GCEYfN;AT20J"CIUX4f@qA7T[1[=5P'BT!?M0ksTrM<g`#;oH#>uZ/nr,eVX)bj3LLDb9s/&X.Pm)O7!!CF0Er~>endstream
-endobj
-21 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 799
->>
-stream
-Gau0@d8&FM'Re;/*$G>7.`P5S1]_G(dm-7R6apW&b8s"0VAY4"NW[]Vrd@PqVR.?G$0J7Qm<a9L\`Y$!J_CY#Ia\Z!&E2]%J[pSK@%;1(T5Yi3\'?`A["4>6bBq*/kgKNbo*P(V&<GNQ#+`46fFm"]3V!#d%+c^F@f\qr@5(Dr!Ioph-_d@Om'A:MHGVi)#9N!rK*cP<+h.*6rM^PgV5qNOO\HL[3/%-O9gEC5/MIJ%>eAajcbV#J3ENYE0e?_e7BkubJG"d)[F%]`:oj4LaYJjNG^*$mI4+XmFn&,'REb!AnLu#UXk:,?%]C'SmrgJ`]Ip,,cm$/mBiWh+>ABI`:t>BQKK[7@*.s597iRLJf"_#%=>JX=Mj\u=nK-3>s5$&MFhc*AQJZ*je&/M_pl-o%Z2F;Jg+egOQ[)``o2G#-E@gjq0"+D:m"gmlWYVY\\'q`=NL$7'gP9E)iqpDZDB6T!B&.(4i6t956/#i,Dg?qD]^UO]`YNI\g^jct("0OVWiA[%<c8]PH[3mCI05BkiQjV\Yo"o]ENGK'?Ca!EQA(E4&ROgrQ-AoJcF4;N_G:HU&9do[*Le^AKUI`E$PX5e@dFML)-r?VLq;Ym-+unF#"jn=&j2lLRd4Z@+?A+S[(BSlI[p0gD*9OsV![L7pbf$g8cdJ0S&W*+5XtdWJDWOc=/3N+$<,$9OFFEd811\q'3id08L%aq:14j>"Qi=6g>EU3P(s7n;VgA^SsVF+.?mDfcRi>T.8&-$)q-dU=;o:kd&T0am!8b#Ps(8s^Sf\'kk'W$#9qLH-3~>endstream
-endobj
-22 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 1275
->>
-stream
-Gb!#ZD/\/e&H88.ECc5A:-De1M^<Mj!3\tKU03eZcA/,D$q6m1Xqmj1FLuGCJ)=+d?Xt[IO`]5h=I+'L]B<LFO!tq@U#e.(!Ic(Us,7":@?^c"M%-5$3$%DBmF;hF$[a_.h\2LU"2b4MgTKN15TBl5:ll@(J_&BmdjEAU\%m*A6`ERaPX=OgS1noo0_ueZ8(uTWF>Mf`4(R80L(1:u&B"'UKSO#G$uiaB%,XNA5cA2Ph3pP1D!dpGAcd+t8:6E+F8ADP,Ysh)(e7u&/r]9+hD=t]8JpUcPXhG,R=OUTM[<X\>W1NJ"*D1UJCLA3.KUP+Y%IjaO5=7HTX=bjX&PDcCF$I7-8J7<kS3+d&d@*HJQP)^?4GuR;R.R3BrD`(01-WFQoVP5e@Dp$-"S$?<OFp7\;7#gR),gi`B5BS5Kto?6kV<-/t30-454<R$ZV6HDahF^U<cN@b6:fa^O7_8jJ<@,3i=,;5ptm5?]2%:98g1),jp6YYp$siAl0i`j&h>PJ>rr>Lo)/=B2'E>VG)p`i3b"kDF4_E1&4?Lj&6K<bq(;^Rp%jngb#h8XZ08e7n]0X[n."K:o,N&%*uq3/l"o"GlQOa\)WZZY(j^b^^.Me7]V!TmN*`ab,=.D6G;ts`B9=keS\A6MP*=2bMH].Vi2>O&+4^a0g%J,)@nJb1cO3/&S#n6"i.`^cJ^28*mTsUn3:'Ab`>*;?#dT_QXeJneCcM$F/=^"$mg']+X@?3r]92F[sZ?F2;RI*]s*e`\$bP%mctY\dTVf&?P8d'bCHhZ9AK;m/q*eXjlgOuBWUnq<8Mt@LnNHUn,tZWGbqGM;'tclbh-Nfo[:u44sB(O6!uh41ptEb't]s?6G8&)678rFl!E6Q3_K!!dN7`k.a'R$E-tml\reQAgl;SC*hhfs%ltNYkN?[lFQZB).%F=QLUa6V%3[!^L-B1ljQi_:Ml7+0%&1._"V\/`QGom6.&k[$)h8aZbI>0(/Tpr;,9bGk/(bi\]"2Ee-3Y70[gN<4nYYCd$T<5Z/\Nb==eVZAZJB39G0.Pj/bb+/7-T1e9919h'mV5!Ycfq`AT%?nSFlhl(nJN`Nq*o%qp]]or])5<O7qNN#IUhTp6!+WIA]CTHcTq'Q:F$[6"P!oj#B;1_?Q8V#%98qWi5)gA,PY<&nA2iWE>.k[DCK4d<_H$\X61BMS;!hp=:s!JZ,JK`BfP'@QVs+pL/\$jj)]K9"AeKs!aa*&,RNuI5%bnK^H^goq-_.@nY[\,'b_bPZ&InrW+bF^$u~>endstream
-endobj
-23 0 obj
-<<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 585
->>
-stream
-Gau1*c#28i&;9LuMRaF?$?T!?,Xj`&!m.E,h,q^&"GLi$=HZ*M^%L2SrC!o])D7,;!X*7N\NB^[ENns%iE_\`k7#O\%PEi+K1hBK^>LW%RV5Sm0;PDA3(]]VAjB6@9VilN6@csjqZVAIY(S'sdhkE6inSK`,o5foCLM+BrBU(]0D7!)H!)=+Bqq%`@Q9c8Q,-f!@I<E&mE442qm=XS*YHk0,TrDq:`.-9#d^l:&tJVHQhN3I)YRd_/M%HfZbCJqf^4T``NQ>F1n.c.&TPY)r^(hR&gK^@VpT-0(uiqr!9YTa_*Va>\Z>9aMRkA1lDZp\ro`upnGiN]Cl8@sF[*"'!h\al51AcX@_]77+6@Kk'q&I9k9aYjHiXdK3q*`6Rtn.us)'2#fN";qnQWLp*DN'&K!(<e8c0)i`eqtDQEOUr1I,-8&flS-[Z;+%Nic@AM!b)Bj!HDiH],K,LX'63W(]PKh#LH&$/_nU:VQM4$\aH"F'Uo\VR*C3_2#\4dFQp)'?GB_%u&f;j)NHo^t382SU\:4/$g,Jp9>>j\]<==6hLE'MQ9b$+ILMsp9i>h?3ZpUIKOIi>[[~>endstream
-endobj
-xref
-0 24
-0000000000 65535 f 
-0000000061 00000 n 
-0000000112 00000 n 
-0000000219 00000 n 
-0000000331 00000 n 
-0000000436 00000 n 
-0000000641 00000 n 
-0000000846 00000 n 
-0000001051 00000 n 
-0000001256 00000 n 
-0000001461 00000 n 
-0000001667 00000 n 
-0000001873 00000 n 
-0000002079 00000 n 
-0000002149 00000 n 
-0000002460 00000 n 
-0000002565 00000 n 
-0000003996 00000 n 
-0000004936 00000 n 
-0000006354 00000 n 
-0000007120 00000 n 
-0000008656 00000 n 
-0000009546 00000 n 
-0000010913 00000 n 
-trailer
-<<
-/ID 
-[<866ba0252362fec5d21075bc143bfa78><866ba0252362fec5d21075bc143bfa78>]
-% ReportLab generated PDF document -- digest (opensource)
+========================================================================
 
-/Info 14 0 R
-/Root 13 0 R
-/Size 24
->>
-startxref
-11589
-%%EOF
-13 1 obj
-<<
-/PageMode /UseNone /Pages 15 0 R /Type /Catalog
- /AF [25 0 R] /Names << /EmbeddedFiles << /Names [(Content Credentials) 25 0 R] >> >> >>
-endobj
-24 0 obj
-<< /Length 24276 /Type /EmbeddedFile /Subtype /application#2Fc2pa >>
-stream
-  ^Ôjumb   jumdc2pa  €  ª 8›qc2pa   ^®jumb   Gjumdc2ma  €  ª 8›qurn:c2pa:be001b72-2004-446e-96d2-0a30bb00c672   jumb   )jumdc2as  €  ª 8›qc2pa.assertions   	¹jumb   #jumd@Ë2»ŠH§*ÖôCic2pa.icon    bfdb image/svg+xml   	wbidb<svg width="716" height="716" viewBox="0 0 716 716" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M508.749 317.399C516.777 287.314 508.991 253.884 485.389 230.282C461.788 206.681 428.36 198.895 398.273 206.923C376.231 184.928 343.39 174.956 311.148 183.596C278.906 192.234 255.45 217.292 247.36 247.361C217.291 255.451 192.233 278.91 183.595 311.149C174.957 343.391 184.927 376.232 206.924 398.274C198.896 428.359 206.683 461.789 230.284 485.391C253.885 508.992 287.313 516.779 317.401 508.75C339.442 530.745 372.286 540.717 404.525 532.079C436.767 523.441 460.223 498.384 468.313 468.315C498.383 460.224 523.44 436.766 532.078 404.526C540.716 372.285 530.747 339.443 508.749 317.402V317.399ZM470.899 244.776C486.892 260.77 493.488 282.601 490.687 303.412L415.577 260.046C412.411 258.218 408.509 258.218 405.345 260.046L317.401 310.82V277.526C317.401 275.191 318.652 273.005 320.676 271.837L387.644 233.174C414.178 218.353 448.346 222.223 470.901 244.776H470.899ZM357.837 311.144L398.275 334.491V381.185L357.837 404.532L317.398 381.185V334.491L357.837 311.144ZM264.776 269.693C265.207 239.305 285.644 211.649 316.453 203.393C338.3 197.54 360.505 202.744 377.127 215.573L302.014 258.937C298.848 260.764 296.898 264.144 296.898 267.798V369.346L268.065 352.699C266.043 351.531 264.776 349.353 264.776 347.017V269.691V269.693ZM203.391 316.454C209.244 294.608 224.854 277.978 244.276 269.999V356.73C244.276 360.384 246.226 363.763 249.392 365.591L337.337 416.365L308.503 433.013C306.481 434.181 303.961 434.188 301.939 433.02L234.971 394.357C208.868 378.789 195.138 347.261 203.391 316.454ZM244.775 470.9C228.781 454.906 222.186 433.075 224.986 412.264L300.096 455.63C303.263 457.457 307.164 457.457 310.328 455.63L398.273 404.856V438.149C398.273 440.485 397.022 442.671 394.997 443.839L328.029 482.502C301.495 497.322 267.327 493.452 244.772 470.9H244.775ZM450.897 445.982C450.466 476.371 430.029 504.027 399.22 512.283C377.373 518.136 355.168 512.932 338.547 500.102L413.659 456.738C416.826 454.911 418.775 451.532 418.775 447.877V346.329L447.609 362.977C449.631 364.145 450.897 366.323 450.897 368.659V445.985V445.982ZM512.282 399.221C506.429 421.068 490.819 437.697 471.397 445.676V358.946C471.397 355.292 469.448 351.912 466.281 350.085L378.336 299.311L407.17 282.663C409.192 281.495 411.712 281.487 413.734 282.655L480.702 321.318C506.805 336.887 520.536 368.415 512.282 399.221Z" fill="black"/>
-</svg>
-  jumb   )jumdcbor  €  ª 8›qc2pa.actions.v2    ßcbor¢gactions¤factionlc2pa.createdqdigitalSourceTypexFhttp://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMediamsoftwareAgent¢dnameegpt-6gversionegpt-6dwhenx2026-10-24T06:36:23.700665ZrallActionsIncludedô   ¤jumb   (jumdcbor  €  ª 8›qc2pa.hash.data    tcbor¥jexclusions¢estart0îflength^Ôdnamenjumbf manifestcalgfsha256dhashX ‹.p·ÏmóŸ“H\)%Z¾6tï×¿M?ÄêFøÄúcpad@  ‰jumb   'jumdc2cl  €  ª 8›qc2pa.claim.v2   Zcbor¦jinstanceIDx,xmp:iid:0239431d-0704-4526-9ec6-1f61bc8dea87tclaim_generator_info£dnamegChatGPTdicon¢curlx$self#jumbf=c2pa.assertions/c2pa.icondhashX u>ğ=W1’³¨NëLûÁŒt·'wÖĞ6Çe6ãñkspecVersione2.2.0isignaturexMself#jumbf=/c2pa/urn:c2pa:be001b72-2004-446e-96d2-0a30bb00c672/c2pa.signaturercreated_assertionsƒ¢curlx$self#jumbf=c2pa.assertions/c2pa.icondhashX u>ğ=W1’³¨NëLûÁŒt·'wÖĞ6Çe6ãñ¢curlx*self#jumbf=c2pa.assertions/c2pa.actions.v2dhashX v‰/ â‹Í:ƒ´& ‹ıSÄ­–AebG²Üaunçø¢curlx)self#jumbf=c2pa.assertions/c2pa.hash.datadhashX ¤‹¤»˜ğW0–ÑiçÇì@! ‹å:Ïu ÓƒÇÀ17Shdc:titleiimage.pdfcalgfsha256  P8jumb   (jumdc2cs  €  ª 8›qc2pa.signature   PcborÒ„Yè¢8$!‚Yˆ0‚„0‚l ¥üépŒò€1îDds0	*†H†÷ 0J1!0USSL.com C2PA ICA R1 202510U
-SSL Corporation10	UUS0260422155105Z270423155104Z0G10	UUS10U
-OpenAI OpCo, LLC10UOpenAI Media Service0‚"0	*†H†÷ ‚ 0‚
-‚ ºjLM—ê‰¶Ñ¾^XNr¡™ßiq|å!#Ó¢5œL£J<ïn+¿æd®×„Ki$ZcÏêv
-²eÛ|<áşÁ3w¯'Ş; :´c‡˜ÍMœ¿´3DªT07F¸ıšyDsWU£c|İ¬X/æz®Ş¥˜Ã“NHğZøà|¤’KÕlºÊÂ*È’¾uÔ”gµWªjšm00,×UaŒjÒS¶ x^ECN’£€ñ¯[Ñ²ëş‹ïº×7	•«d-™É‡šø¿.Ğçc€–šy 7“6£5ÉHÉ,˜céD›5¬¹§SlœhsÈ
-9ÌIó £‚g0‚c0Uÿ0 0U#0€9=GÜ—¯ˆ{MsÍåî¤¥*0o+c0a09+0†-http://crt-c2pa.ssl.com/SSL.com-C2PA-I-R1.cer0$+0†http://ocsp-c2pa.ssl.com0U 00
-+ƒè^0)U%"0 ++$
-+ƒè^0UóMÔËrøF
-vG¥hOt0UÿÀ0	+ƒè^
-+ƒè^
-03	+ƒè^&$019bc403-5cd7-7669-afe6-fdb17177d4280	*†H†÷ ‚ ‚8—le¡7 ñùítºÕ¦[5õglÏ+fi@ÍõüÒrVßÊ•(êøfŞBC=øx h(‰­µîüõ2ÒŒ¸_çl€në[|—[0ç.B¸Æpšşş 	¬5FÕ ŒIE€Ãº’UÇZoÒëØy›–:¼D44}ôA¥3—/.lQR
-m=I°ËÇ†XÌÜî.éÆ9¸3\ Úî W3T.p(J%)O’|.Òúİg.zèPx9Qºƒ:Úˆ~#’õbXšåÂ¨s†ÅØqéï\d{‘î7/v˜xVdçoBÑ}’¼…jomd…Øÿ"–í¹ï²Ğ\„}h]5[K±ÅiHyæh Äa˜:LøÀ$yå¦hàïıÖÖ.-AduV_“”¶¡œŠ<¶ÀèmóÅCçv,h¤òæË‹ˆ•è{*r$=!Æcm/%€£™[ª)¥ıGêá÷kåû[P&m+¡‚]1õİb¨|2ÜLÇ¥,r0P€W“‚âè®³§¯Y4®rï*®x¬â3ìSµÉ™Ò(¨*7¡N«üÌ~X›'mEá´*œ½0W¡1. .ÉâÈTÛ¡’O¾$5˜ş/iÜ¸MãŞ/èlõÁŠâÓşrwÓ¨+ÔW—®‡Ø ¾“¶‰YS0‚O0‚7 '+cÈÌM-›„Qrlôœ^2Q®Ş0	*†H†÷ 0O1&0$USSL.com C2PA RSA Root CA 202510U
-SSL Corporation10	UUS0251222181730Z301221181730Z0J1!0USSL.com C2PA ICA R1 202510U
-SSL Corporation10	UUS0‚"0	*†H†÷ ‚ 0‚
-‚ Ë:´Í¸œË)V¸y§øköùØrÃ¦˜­*AÚa.GR½tQ¾]ìz‚¶Àûúè'¥‹èşbó`ñ_HÊss•äNnÌNz5ŞXá×‚ÜÒGCw›ßHˆyŸ£9¤YN^àNG—òuB×v=¶¤"ÜíÆoÔrFŒÖQÇµ·zò“ù#'Õ€PuŠp héç¼„(|œ*ê)©À/şÉvFU°/cê}ô°D¤@Ş@6\DŠTkWHÿ»o¤ÕêÂ×|Ø¼Îi¿  M“E;™.yÒÏŸ)»FÙxc0–3Qœ^“múå4JXx³)l]|¸u•<™w!{Ø´JëÚÍÇ
-ÖÉ¢Ş®—³¶Q–Ú’›Ã²»PÄş¶¤L•]-’jObåà*÷i œÕ¹“ ÚÑ»^OÆ¯ù)LĞÉìëó²qP{v'h‘ùPˆ¸w5ØÍ¡á×Ó)çJÆ‡TY$Âg²m	5ÛºÎ¸F¥à‹Úá§ŸjÎ`ÒÄ÷ÁŞsyUàp´ïêÌÇşv‰Nf
-iˆ-íÃF¢*äŒÔœWF-XbÕÊ¨ú~øÂÙajË5] “£²e¨/íï˜çü~ºHôª¡qü“¯ê§NsˆiÕBÀù„’…OËT³=:øİ)eyÊC–¸‡X–!ïÑ‘{ £‚&0‚"0Uÿ0ÿ 0Uÿ0)U%"0 ++$
-+ƒè^0U9=GÜ—¯ˆ{MsÍåî¤¥*0U 00
-+ƒè^0U#0€ü*Ju:€ú™c“ğsWì¾“°}Ã{0x+l0j0$+0†http://ocsp-c2pa.ssl.com0B+0†6http://crt-c2pa.ssl.com/SSL.com-C2PA-Root-2025-RSA.cer0	*†H†÷ ‚ Î6ú>ï–6-¯Ufÿ{+ kVõË­½*­¥¦ĞM£>“ä“iÕäŒ¨næ7Tâ%œìef(<3=¢š¢»ÍgdJç¾t!¡nÃ«&Ä;,ÚU¹ıGNàx›7ƒÄt;ÅGaïmAr¤Û]CSÉ–Nåà:ß¨İ.Ñ¯X—Öçô_r#<kÏ½9«Œ“¨§vY>á’õ÷ÙûFb«nnÔˆF ³/*j_¥NÚøÔüÌÙ£<©wE
-Áù˜¹9ËÌ¡qÀ*‚qÓäö%âQ!mÖßäSoJ}^ÀºÕwy!zÎí÷›¶²ŠBVkA*şkœ‹î£(Ï_óéĞdÖîÂ‰Kë’Ïõ¯Â'M¸‘¡7%™æı€Üô¼Ç7{¾´-gXğ/çÃ³‹qåDz0¶¥²u>[#~;ÓT¦:¹ÇÌ3Õj5zv/şWÚiø>?ïT‹{FÃcúíÄ/p„+öV‚ô§Ë$×l^${:½©X;i³œÒptÿ‹n&»Ã«EÇS–œGµÆF«^õüˆ‹h£5å|j•eµ«ë¹ÿº¸à›JG²Îì/‰}î¯œMÄÉÎõ2=÷&4ş"‹zíù^^g_Q[Û$VûÑY¡·Şšf	¶Ñ†.ú}~•y›Df|6…öõ£gsigTst2¡itstTokens¡cvalY‹0‚‡	*†H†÷ ‚x0‚t10	`†He 0‡*†H†÷	 xv0t
-+ƒ¿0010	`†He  /ed&É«>¯Ğ3õ3°î66Hs—öº­ Hy‰Õ	 èO¯=a)È20261024063627.977448Z0€zÉâ»ø-N ‚f0‚ö0‚^ aÛF(2ŠŒJ·¿ş`ãl?q·0	*†H†÷ 0{10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Issuing CA0260408174626Z370709174626Z0u10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Leaf0‚¢0	*†H†÷ ‚ 0‚Š‚ êÊÅ­”ığı'ŸÇx§aÊÿ)a*û¡ˆÍ_¨¢—‰/‹‘È¼°–=U‚Á–6j­‰ièÛ,D2ƒ¨
-Íwå5èî¨d[ş¸àç ¡(Ã5İ§7é"÷	M—š´„sÀ.|©PG( ´ğiğ°‡)zYş5BùÙiRJ 7òhÌñ-·‚– KF\=¤†¸KEf8¢NM'Ê•ºuÌN‡jŸtÃ $_Ä~\®şó•í ‘ß<õ†›*^ÖĞİÉúÈMÃÉ„ZI,ä8s`R¸LîÆó·¶Øİj©Î º]ÖÄ\5dò#S?be]p+ÔÉk	ERèWíZF]Ú]vœ%yhƒQ¤˜„u‘r˜UÿØãCb±íig'A¼Åòj+ƒIèá-4»9¯g½´•È²½EgÍrˆ”_UK,­¯í¥ô$¯w>ƒŠdQ‘Œ9–K°=®ú™¡>Œ=ğ¾6¡.õcµ £x0v0Uÿ0 0UÿÀ0U%ÿ0
-+0U¤'T‚¢Š€{=Å†Í?pÙÂƒ™Qx0U#0€òğ°ÇT=#C…ÜÊsĞr€=¸¨0	*†H†÷ ‚  û$OAÀÀ¼˜²2  ™H5OÄFV~§>?¶¥#ù*H>àQE@xÁ»ƒN“PÉ›'–hßMÎòöÒy«ïêÁÚ?õ˜YæpÍ‰ôîG‹ªËìÿŒ~áFØ‘æœ¸ä4FÿaÒxø}89ãRí_fèsÀ r;ä¨«†*£7!ù;ß{\TØLÇj*KÏCt`€s£ÉÑw¯‡©ıµ±„jn¿ˆ*Îš¡š«¢‚H7ÅcQ—ÛR|ogÉiBÕÏõû­^‹âày<.ƒj¥è%A…íäÁ :şRPï‡ŞádÍUù! ß¶)ïŸ'nÑº4F«J"OçbwİE#İa-Â1)Ä¹~y«´WÔÁìÏá\{eI°ëM«¤Ç'@N¦´µÏ|Ã´C§vÓ^0cî¨®5(td«Z5ã[/:>N
-aÖ0MC›ÿN.Æ!¹>:, W0ujdK¢Ğ	Ñ× g&Amgøpv¸%&Vù‘&'ÃKI0‚~0‚f ÊÆÅÅÚ°¼ñN•¥ê¼0	*†H†÷ 0x10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Root CA0 260408174626Z21260409174626Z0{10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Issuing CA0‚¢0	*†H†÷ ‚ 0‚Š‚ ‰¼Ô¹âÈ¡¾a»Ş<df~§¾œmÓ©0&<ôàk 9ß•4í©¢eHÛ7†2ƒÌ
-J Àó4l À˜Í+Ÿ¥ôË|Ù&Ş~ÉM¢ïc[‘æöY¨ÒúNùÙ8+ZÍ`Z˜˜¨×SÆãÖ.H¬CW	é”òGùlEŠ`·÷®/^¢5N…8…iŸ4ĞMØC=Í4müc“üÓp»JèvèjNfI íüø¾ïš·¨w¬ï·8Ì¹Ô*3ÄvÖ@wËşÇ]-@ÓŞ‹<ÀÖ@A™Ë”?,} kRüÊP·	GEá#Uú±OoT˜•ô}ºøhá"zÜŠ‘C‹¶.C±b ¾Ê$.ï¿¤ÑMè¸?1Ï&=Å PêòÙ$ díÕs.pxªŞV<ùÔ€¢è­¯öû¨£\Ëh«DÛ0wòÄ4tkUmÆ‡ûò2<qE÷ìPûşÖ1&»ĞÄMaâBÛ¯Ã+n_+æâ°ï\DÍÀs}¢é½m‚¼%e„0ií £{0y0Uÿ0ÿ 0Uÿ0U%0
-+0Uòğ°ÇT=#C…ÜÊsĞr€=¸¨0U#0€XÂ@ <Gv+¨æn¨‘––È·Ùä0	*†H†÷ ‚ ’ì7\ŞlëdÚ®¡	0r®Ürõ;¼z=ÖÆá/öƒ3}èW@NL™ªkÔ™Ù‹ÛkÖLøÊĞY3Ó¡ 8\#ˆD$û‡áö“'¼¡íL_g]ÿ5«1Òì{Ô@C7OÂ„œºdÈ°¢~š6øáĞ‚³PC²àU½€”ÈYRNJtŞ]ÇEX›·ú0ª;ÜG¼Õ.,¹8c,yZ·İU­=BßˆÏñhşs ÔZ·Ş$—‘ÀçgşÜ¦
-ó¥F³QÏ¯_ãÈ¸@Æ½ãùÖKqĞd]ådÂKÀ^wÑ=Ç[Ï{ı””çKQÚûdô«ğ5”ñö¾~+İ²š=PİPÃ–dm«sŸ(;wĞ—íoEO±3._Fëƒ¶©a¼×‚®ø€oÂãi0æm|:D’+˜-¯Ü4Á¾¥*Hç‡ÈŞ8µ3Êã„Ppñ²KŞOö‘Ü_…úñæÑ×Ê§î´Ÿö!x)ğãpXw†¤:K—ƒFèÚÂjvÉ©Ë!E¾e± †.€¼YKM›Cm´×„àüğÕÈaCjÃñ!<„]ş;ÖØ#9E_qú2ı €•DµO åÃtıâN‡r†ôğQ‡½Ôµ+5l’¤;kjºıÀ;œvÂÕ9IÚã”>Pj×Lâ‰aïëÏÅÃ@npz80‚æ0‚Î P;l‰Œğ$3,÷Oû}‚ì0	*†H†÷ 0x10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Root CA0 260408174625Z21260409174625Z0x10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Root CA0‚"0	*†H†÷ ‚ 0‚
-‚ ö’éÒº­á¬u¨VØª±³j’_–yõ’·-$ø¿À¯`¾ÁšÍyšÜlšş6šÁ˜¤?ä,º¥¥Ps³
-ÂùóÄI/x½Òì¼ç?ô›Ñò a¢,‰%ÊQù%œÒÆ/ô‰ÄAş&Óm5Íì»5`@¨…Q¾öî˜ñ*ØzkjÙ.Ùcóå\)Å†"ÁŠhÍë8©P–[#Cû8ÿB|;:¡Q/%ÉHÜ1ÿPrîğ|¡wÍoaó?¿nèÒ±¦6äk2ûşw¨^›\İİ1LeÿËAÎ(1SÊCÎHn}Öd³)ä´.:·TZrVWó¨j}ïæaİeÈH	I™2tğ
-¢Ìİ“ S¬#½‚… ±ï¾í¡w î:F3¢ì¯é1f´fo²‰“ ~•!ÎAø^ğéÍ¹ÀÕ3]xĞĞ'1ÏP0rsÚjÂÀ“Ï­Üd‡öûNˆvõ>ïÿ’,™w.öÜ˜¶	:ıô	Ç_Zé~H	+µŠƒò[<,¯‘¢A·RhÑ¿°ÀÚO`½î)ªí‡q\(Œˆ£%cEØü{alFT;\É°‚¯ƒÈ±#?Ÿ[î¢×Tµ*S®»…Û¦ú—ì„‰róz@É¶…XG[ñ$a9¢LŞØÆ¨"ò¿[L,Ë £f0d0Uÿ0ÿ0Uÿ0UXÂ@ <Gv+¨æn¨‘––È·Ùä0U#0€XÂ@ <Gv+¨æn¨‘––È·Ùä0	*†H†÷ ‚ Xø‘˜òlaşÈ†Ö[„¦Ö¾¸¦]]IË¸¡)Í-¸Xùğ„‰=<øoÕj´*¢U’ğg™^µTûšF€ãQ SÀÁˆWŞï‚U~ãô}ë&üƒÿ!¨Á¬ŞÛ“«ÍĞ0v:“Îªg9.€tßmğ~v/éêPA‹8=låà>î/ÛdT6^¾bE¶Ñ!´€<ŒëÚœÖJ©ÕTe[kÑX~ÀI‡ëëK_’;”×š†ö¡YÎGğ8¬Ã°tdÑÀR;¡±{(kái—ø(;'ÿ®¤÷eË ôê¹½”ÎDâ˜±
-HhîU©!¥`şÊÖ}Ñ{† œó¨xĞÆÚ@.È\b¨*ÁûVçy¯ìåÛÓpşFÌc¨dñ<é¯¥d¼^¿…-°Îã¹Ó¤×R»p‹†û.¿
-öÒU+#B+C\ì¡‚a?Ïqí°÷—éäËÂ<ü¬w·¶Ü ÁLé‰²²/Ã~’dœµ„ŞÌ–ı‰°KµC}Òé­†ıÙ-Ÿ½ îÀ´GV#|H‘Ng‰ {bÁÉ^UñöÆQ#Woï‡¾ Fy¾”±È (•Šˆ&UfRïÙKº¨ZéÂ,­ŸÃ\Bó¡õ'dyqŒ
-Zı¹ùEypájµ7–XıE¿T%Œƒ=Ù&3#ĞXw¦¸1‚h0‚d0“0{10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Issuing CAaÛF(2ŠŒJ·¿ş`ãl?q·0	`†He  ‚%0	*†H†÷	1*†H†÷	0/	*†H†÷	1" °²¤Ûc)’2Ö¶fÇ³‡§†ßGñ&h4>Ú]#œ®0Õ*†H†÷	/1Å0Â0¿0¼ ½O¹²L6gˆnïAámşÙ"¿[’JĞ¢Ä`F"z0—0¤}0{10	UUS10	UCA10USan Francisco10U
-OpenAI OpCo, LLC10
-UTSA10UOpenAI TSA Issuing CAaÛF(2ŠŒJ·¿ş`ãl?q·0	*†H†÷ ‚€mÌUÎÔŒ—0p²uQ ¦PÈ$U-5ĞweÊîm'M+šlæ ofO€ ÀÇˆÃÔæ~e[szÚk\å4èø5ÇIı™qOœ7–iO¤»ºNI 0.Í	;zm‰Yàam—ñôyf)JÒúPóM…ƒÉ7îÈíÉOB Y—ãdôÄóàCütJÛÉz‡¶óhXŠL¨`dŸ¸Ôa¯×Ûz¸«#ƒÍ8B´·Á×S 6QvàíŞ!Ij%ò‘bt™/­5´m>‘È]+S1M²p”–f÷CÏß‹Ëg[;ûÔğ¯e_b<´
-ß©ïe_ïëpEaÜ‡¡2¹`,X…õÑ¥Úq
-k$$&å0îGòÊœÒââŞe\¡=İñ-ÜAik'ÿÑs›ˆG+»A¾T‰#ø:-ïtõ[¼6c—p;c‹Ù–îÖø¦¸E‰ÛÈŞÃšNi–;&]E´l.RGÓ('VÑ6¸İÊÃ€8>UGÉéçá1À‰erVals¡hocspValsY×0‚Ó
-  ‚Ì0‚È	+0‚¹0‚µ0é¢có¢^ÍÍÅR¹?óÓ5fmÈ~20261023221133Z0˜0•0I0	+ ß‚7S^SØ3±à=$5ñuæá
-9=GÜ—¯ˆ{MsÍåî¤¥*¥üépŒò€1îDds€ 20261023221133Z 20261030221132Z¡"0 0	+020161025221133Z¡#0!0	+0¾ÆN¸Â‘æ©È+u©¬0	*†H†÷ ‚ =A	|µÔ$p}PU,Ö¹¯–”ÿ°—Äë~Òµ^K,–G–…gıåy¼ã%Ú.ÆWÎk6ØŞH]kBL•°ÔÄelÿºHnêÓl)P¾¼İ5ö!Äm…Åı#	ÿÕÕºÑ¥¸Ä Şó¬‹!œª,>£tØD`íş‰=¬}6oºYHr®µá£Ä´å‚…¥/á@Ehºú0B‹.öÚÉ®^Ré	3S w»~±ôÀ{#SŠ=<ĞC¶;£³®°ƒÒ#!jf†&Å93ÍõÏ½±ˆ¢ŒcÀ~“¥¢Ç!E„ã…ŒÓû_UFG,CĞ·<“;ApDÉ¶½k¸´¤k Œ\qÚA>/{D§ü(©XHeUWÔ„¶í™ôi„/c¤Ş)ï:":\t£(ZÎº vAÂ‚ô Á§›ğ‡ïÍx“¸Ù®ŒcM	ÚŸ÷ä^í	k7&X[“$`ĞulÖTŸ§CkuämÙ×d¡ÁÁ\4¾~e§òË/
-ş« ‚10‚-0‚)0‚ /	›èÄH¨EMÑg+a0	*†H†÷ 0J1!0USSL.com C2PA ICA R1 202510U
-SSL Corporation10	UUS0260102212505Z270102212504Z0M10	UUS10U
-SSL Corp1+0)U"SSL.com C2PA ICA R1 OCSP Responder0‚¢0	*†H†÷ ‚ 0‚Š‚ Åçø™Éùå-Ïhwéi‘PÜ©‘\OÀ«Ñ™)ã–ÙùY÷f€Š–*«¦†ùdkV¸NÄê,D[•p\‰K¼œç•AøV Ó &Tn=Æ³Ÿ¶tZøÛkPhÜZ˜©‹CŞ‚Ïz`ë‹¯›)¸†	G­U[^
-êÌŠõm$8èzûÁÂĞí+õç‘pçz¹Ô†Ÿ—4hsàŸ2`¯ÆªtFğµ0fòëzğª€DxCŸÊ«bñÒ·L1R¦$Dı#Ö2ÒyÁÚ¬,fìèˆ’C„/m,•“<ñ‰¬'‹ÔIÓkbÆh*(¦Ès¥l‚élÔ°
-Êó§%lYÂ¸²Ÿrn4â£x;3 q%Ê­¥¹É[·CN¢Ó[‚üd^t;{Ä:ïS«–ûíƒqœv<ŸÂnmìYdï9«úŒŸ@ÿ¹<±ÌOßM%4¯Ì]¹B…k6[šá0s×ò÷?àÌ‡Ñ¹’ÏƒÔÄ\fû­ñ £‡0„0Uÿ0 0U#0€9=GÜ—¯ˆ{MsÍåî¤¥*0	+0 0U%0
-+	0Ucó¢^ÍÍÅR¹?óÓ5fmÈ~0Uÿ€0	*†H†÷ ‚ wìº'8øÌõl>(Ô³
-Ïwõ†h|uƒåIÄhúÃf½ÒpwüL&ˆ÷0KTdÎ‘| ¯·Zµäª™Ÿ‡6é`œ°"½æÿÁ5Ød_¬Ñ>á@‰¨Ì‰ç 2fµ.¿ñ9Mıls¾ö 6pãÕ_yÙÖrÁ2Lô…©B¸F‚€3Åh,»åü2‰_ŸĞşŸ‹k\^tŸPñ)œPÊÄVøø	¥xw³ä‘ŠåÊ*¶á²Å±!½¢…†8£¬¸:9 ^Ö1¶şº:ª ºğSNòó*OØd…‚yZÜO‹ÔSÂ=zÀ¶¦½„*ë4ì’2û µiã_:±“QÉXR˜•Ğ6¯šİdj†^cY´‚N§Šü­÷C9CqQIÛÇÇB‘Ê`E¯C[iüJ<1ö|;€À[^ğ¨ %õíEüFş{¹öM,A$¤`¯£óëã¸õqƒÈI½?èØ‘4X6†ßÕÎ¶%Å“Y÷sÁ3û0oŒ¹é=Ò{h>6öùìx*û±úğBt1îšØHn±øĞ+ÉÄû<zÏÇäÒ§jÃ3ÓÖÁÊµè"“L®_4ïi{Û|Ìeõ1´U‰U‚NÈnÉÃÛO‘»^×EST}hL÷\Ú)İµv,6z‹GŒícà£«4ÙÅ°E¹ºœæ¥rİ¶¸!ŞÇgcpadY&u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     öY 'bà`?T»v¿İîîÙKyéaì¬ØäºmFw¤=” œ_¤ÆA±3A«AVEè*P™‚ø¬Z¹DGbÀİWä1êÿíùÈn\ÄßÜ\p^(²>\^ìû‹˜U†O¥q¥¨©±”¯k¤Å’I1vÏºz½´b;c1´ã^_U³ÏïE±/¶Ñºç)…¶æ‘„Ä¸Pè8BPs§GEÇY«ó•yrÈ›M.2$±zá@/„(1$Ub=‚ »O÷æ†&‹œäp&%ÅÁñyÃì‰óº*ğÌQ Ô±t¼›µr_Ò‰÷B¨c½+Q]Qø„váâ±\?€(À=
-endstream
-endobj
-25 0 obj
-<< /AFRelationship /C2PA_Manifest /Desc (Content Credentials) /F (Content Credentials) /EF << /F 24 0 R >> /Subtype (application/c2pa) /Type /Filespec /UF (Content Credentials) >>
-endobj
-xref
-13 1
-0000012285 00001 n 
-24 2
-0000012441 00000 n 
-0000036820 00000 n 
-trailer
-<< /Size 26 /Root 13 1 R /Prev 11589 /ID [<866ba0252362fec5d21075bc143bfa78><866ba0252362fec5d21075bc143bfa78>] >>
-startxref
-37016
-%%EOF
+Experiment 8 â€” Time Server Application Using UDP
+
+Server program (server.c)
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+int main() {
+    int sockfd, n;
+    struct sockaddr_in server, client;
+    socklen_t len;
+    char msg[100], tbuf[100];
+    time_t now;
+    struct tm *t;
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(1234);
+    server.sin_addr.s_addr = INADDR_ANY;
+    bind(sockfd, (struct sockaddr *)&server, sizeof(server));
+    printf("Time server started...\n");
+    while (1) {
+        len = sizeof(client);
+        n = recvfrom(sockfd, msg, sizeof(msg) - 1, 0,
+        (struct sockaddr *)&client, &len);
+        if (n < 0) continue;
+        msg[n] = '\0';
+        printf("Request: %s\n", msg);
+        if (strcmp(msg, "stop") == 0) break;
+        now = time(NULL);
+        t = localtime(&now);
+        strftime(tbuf, sizeof(tbuf), "%c", t);
+        sendto(sockfd, tbuf, strlen(tbuf) + 1, 0,
+        (struct sockaddr *)&client, len);
+    }
+close(sockfd);
+return 0;
+}
+Client program (client.c)
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+int main() {
+    int sockfd, n;
+    struct sockaddr_in server;
+    socklen_t len;
+    char msg[100], tbuf[100];
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(1234);
+    inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
+    while (1) {
+        printf("Enter request (stop to quit): ");
+        if (fgets(msg, sizeof(msg), stdin) == NULL) break;
+        msg[strcspn(msg, "\n")] = '\0';
+        sendto(sockfd, msg, strlen(msg) + 1, 0,
+        (struct sockaddr *)&server, sizeof(server));
+        if (strcmp(msg, "stop") == 0) break;
+        len = sizeof(server);
+        n = recvfrom(sockfd, tbuf, sizeof(tbuf) - 1, 0,
+        (struct sockaddr *)&server, &len);
+        if (n <= 0) break;
+        tbuf[n] = '\0';
+        printf("Server time: %s\n", tbuf);
+    }
+close(sockfd);
+return 0;
+}
+Terminal commands
+gcc server.c -o server
+gcc client.c -o client
+Run the server in Terminal 1; run the client in Terminal 2.
+Terminal 1:
+./server
+Terminal 2:
+./client
+Sample output
+Time server started...
+Request: time
+Request: stop
+Enter request (stop to quit): time
+Server time: Sat Oct 24 10:15:30 2026
+Enter request (stop to quit): stop
